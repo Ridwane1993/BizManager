@@ -25,6 +25,46 @@
 
         <div class="d-flex gap-2">
 
+            @can('update', $purchase)
+
+                @if ($purchase->status === 'pending')
+
+                    <form
+                        action="{{ route('purchases.receive', $purchase) }}"
+                        method="POST"
+                        class="d-inline"
+                        onsubmit="return confirm('Réceptionner cet achat ? Le stock sera mis à jour.');"
+                    >
+                        @csrf
+
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-check-circle me-1"></i>
+                            Réceptionner
+                        </button>
+                    </form>
+
+                @endif
+
+                @if ($purchase->status !== 'cancelled')
+
+                    <form
+                        action="{{ route('purchases.cancel', $purchase) }}"
+                        method="POST"
+                        class="d-inline"
+                        onsubmit="return confirm('Annuler cet achat ? Le stock sera décrémenté s\'il était réceptionné.');"
+                    >
+                        @csrf
+
+                        <button type="submit" class="btn btn-outline-warning">
+                            <i class="bi bi-x-circle me-1"></i>
+                            Annuler
+                        </button>
+                    </form>
+
+                @endif
+
+            @endcan
+
             {{-- Modifier --}}
             @can('update', $purchase)
 

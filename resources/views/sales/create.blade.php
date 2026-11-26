@@ -190,6 +190,43 @@
 
                     </div>
 
+                    {{-- Statut --}}
+                    @if (auth()->user()->isAdmin() || auth()->user()->isManager())
+
+                        <div class="col-md-6">
+
+                            <label
+                                for="status"
+                                class="form-label fw-semibold"
+                            >
+                                Statut
+                            </label>
+
+                            <select
+                                name="status"
+                                id="status"
+                                class="form-select @error('status') is-invalid @enderror"
+                            >
+                                <option value="completed" @selected(old('status', 'completed') === 'completed')>
+                                    Vente immédiate (stock décrémenté)
+                                </option>
+                                <option value="pending" @selected(old('status') === 'pending')>
+                                    Brouillon / devis (stock inchangé)
+                                </option>
+                            </select>
+
+                            @error('status')
+
+                                <div class="invalid-feedback">
+                                    {{ $message }}
+                                </div>
+
+                            @enderror
+
+                        </div>
+
+                    @endif
+
                     {{-- Notes --}}
                     <div class="col-12">
 

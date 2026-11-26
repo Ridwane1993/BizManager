@@ -25,6 +25,46 @@
 
         <div class="d-flex gap-2">
 
+            @can('update', $sale)
+
+                @if ($sale->status === 'pending')
+
+                    <form
+                        action="{{ route('sales.complete', $sale) }}"
+                        method="POST"
+                        class="d-inline"
+                        onsubmit="return confirm('Valider cette vente ? Le stock sera décrémenté.');"
+                    >
+                        @csrf
+
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-check-circle me-1"></i>
+                            Valider la vente
+                        </button>
+                    </form>
+
+                @endif
+
+                @if ($sale->status !== 'cancelled')
+
+                    <form
+                        action="{{ route('sales.cancel', $sale) }}"
+                        method="POST"
+                        class="d-inline"
+                        onsubmit="return confirm('Annuler cette vente ? Le stock sera restauré si elle était validée.');"
+                    >
+                        @csrf
+
+                        <button type="submit" class="btn btn-outline-warning">
+                            <i class="bi bi-x-circle me-1"></i>
+                            Annuler
+                        </button>
+                    </form>
+
+                @endif
+
+            @endcan
+
             @if ($sale->status === 'completed')
                 @if ($sale->invoice)
                     <a

@@ -185,6 +185,39 @@ $productRowsData = array_values($oldProducts);
 
                 </div>
 
+                {{-- Statut --}}
+                <div class="col-md-6">
+
+                    <label
+                        for="status"
+                        class="form-label"
+                    >
+                        Statut
+                    </label>
+
+                    <select
+                        name="status"
+                        id="status"
+                        class="form-select @error('status') is-invalid @enderror"
+                    >
+                        <option value="received" @selected(old('status', 'received') === 'received')>
+                            Achat réceptionné (stock mis à jour)
+                        </option>
+                        <option value="pending" @selected(old('status') === 'pending')>
+                            Brouillon / commande (stock inchangé)
+                        </option>
+                    </select>
+
+                    @error('status')
+
+                        <div class="invalid-feedback">
+                            {{ $message }}
+                        </div>
+
+                    @enderror
+
+                </div>
+
                 {{-- Notes --}}
                 <div class="col-12">
 

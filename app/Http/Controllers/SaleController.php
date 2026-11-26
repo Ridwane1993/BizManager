@@ -117,6 +117,11 @@ class SaleController extends Controller
                 'string',
             ],
 
+            'status' => [
+                'sometimes',
+                Rule::in(['pending', 'completed']),
+            ],
+
             'products' => [
                 'required',
                 'array',
@@ -137,7 +142,9 @@ class SaleController extends Controller
             ],
         ]);
 
-        DB::transaction(function () use ($validated) {
+        $isFinal = ($validated['status'] ?? 'completed') === 'completed';
+
+        DB::transaction(function () use ($validated, $isFinal) {
 
             // ==================================================
             // 1. GÉNÉRER LE NUMÉRO DE VENTE
@@ -166,7 +173,7 @@ class SaleController extends Controller
                 'sale_number' => $saleNumber,
                 'sale_date' => $validated['sale_date'],
                 'total_amount' => 0,
-                'status' => 'completed',
+                'status' => $isFinal ? 'completed' : 'pending',
                 'notes' => $validated['notes'] ?? null,
             ]);
 
@@ -213,7 +220,10 @@ class SaleController extends Controller
                 // 4.1 VÉRIFIER LE STOCK
                 // ==================================================
 
-                if ($product->stock < $quantity) {
+                if (
+                    $isFinal
+                    && $product->stock < $quantity
+                ) {
                     throw ValidationException::withMessages([
                         'products' => 'Stock insuffisant pour le produit : '
                             .$product->name
@@ -253,27 +263,27 @@ class SaleController extends Controller
                 ]);
 
                 // ==================================================
-                // 4.4 DIMINUER LE STOCK
+                // 4.4 DIMINUER LE STOCK ET ENREGISTRER LE MOUVEMENT
+                //     (uniquement pour une vente validée)
                 // ==================================================
 
-                $product->decrement(
-                    'stock',
-                    $quantity
-                );
+                if ($isFinal) {
 
-                // ==================================================
-                // 4.5 ENREGISTRER LE MOUVEMENT
-                // ==================================================
+                    $product->decrement(
+                        'stock',
+                        $quantity
+                    );
 
-                StockMovement::create([
-                    'product_id' => $productId,
-                    'type' => 'out',
-                    'quantity' => $quantity,
-                    'description' => 'Vente '
-                        .$sale->sale_number,
-                    'source_type' => Sale::class,
-                    'source_id' => $sale->id,
-                ]);
+                    StockMovement::create([
+                        'product_id' => $productId,
+                        'type' => 'out',
+                        'quantity' => $quantity,
+                        'description' => 'Vente '
+                            .$sale->sale_number,
+                        'source_type' => Sale::class,
+                        'source_id' => $sale->id,
+                    ]);
+                }
             }
 
             // ==================================================
@@ -292,7 +302,9 @@ class SaleController extends Controller
             ->route('sales.index')
             ->with(
                 'success',
-                'Vente enregistrée avec succès.'
+                $isFinal
+                    ? 'Vente enregistrée avec succès.'
+                    : 'Brouillon de vente enregistré. Validez la vente pour décrémenter le stock.'
             );
     }
 
@@ -380,9 +392,12 @@ class SaleController extends Controller
             ],
         ]);
 
+        $appliesToStock = $sale->status === 'completed';
+
         DB::transaction(function () use (
             $sale,
-            $validated
+            $validated,
+            $appliesToStock
         ) {
 
             // ==================================================
@@ -443,6 +458,17 @@ class SaleController extends Controller
                 ];
             });
 
+            /*
+            |--------------------------------------------------------------------------
+            | Un brouillon ou une vente annulée n'a aucun effet sur le stock :
+            | les lignes sont modifiables sans créer de mouvement.
+            |--------------------------------------------------------------------------
+            */
+
+            $stockNewQuantities = $appliesToStock
+                ? $newQuantities
+                : collect();
+
             // ==================================================
             // 4. PRODUITS CONCERNÉS
             // ==================================================
@@ -486,7 +512,7 @@ class SaleController extends Controller
                 );
 
                 $newQuantity = (int) (
-                    $newQuantities[$productId] ?? 0
+                    $stockNewQuantities[$productId] ?? 0
                 );
 
                 /*
@@ -695,7 +721,7 @@ class SaleController extends Controller
                     $totalAmount,
                     2
                 ),
-                'status' => 'completed',
+                'status' => $sale->status,
                 'notes' => $validated['notes'] ?? null,
             ]);
         });
@@ -704,8 +730,157 @@ class SaleController extends Controller
             ->route('sales.index')
             ->with(
                 'success',
-                'Vente modifiée avec succès et stock mis à jour.'
+                $appliesToStock
+                    ? 'Vente modifiée avec succès et stock mis à jour.'
+                    : 'Brouillon modifié avec succès. Le stock sera mis à jour lors de la validation.'
             );
+    }
+
+    /**
+     * Valider un brouillon : le stock est décrémenté à ce moment.
+     */
+    public function complete(Sale $sale)
+    {
+        $result = DB::transaction(function () use ($sale): array {
+            $sale = Sale::whereKey($sale->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($sale->status !== 'pending') {
+                return [false, 'Seule une vente en brouillon peut être validée.'];
+            }
+
+            $sale->load('items');
+
+            $quantities = $sale->items
+                ->groupBy('product_id')
+                ->map(fn ($items) => $items->sum('quantity'));
+
+            $productIds = $quantities->keys()
+                ->map(fn ($id) => (int) $id)
+                ->sort()
+                ->values();
+
+            $products = Product::whereIn('id', $productIds)
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id');
+
+            foreach ($quantities as $productId => $quantity) {
+                $product = $products->get((int) $productId);
+
+                if (! $product) {
+                    throw ValidationException::withMessages([
+                        'sale' => 'Un produit de cette vente est introuvable.',
+                    ]);
+                }
+
+                if ($product->stock < $quantity) {
+                    throw ValidationException::withMessages([
+                        'sale' => 'Stock insuffisant pour le produit : '
+                            .$product->name
+                            .'. Stock disponible : '
+                            .$product->stock
+                            .'.',
+                    ]);
+                }
+            }
+
+            foreach ($quantities as $productId => $quantity) {
+                $products->get((int) $productId)->decrement('stock', $quantity);
+
+                StockMovement::create([
+                    'product_id' => (int) $productId,
+                    'type' => 'out',
+                    'quantity' => $quantity,
+                    'description' => 'Validation de la vente '
+                        .$sale->sale_number,
+                    'source_type' => Sale::class,
+                    'source_id' => $sale->id,
+                ]);
+            }
+
+            $sale->update(['status' => 'completed']);
+
+            return [true, 'Vente validée avec succès. Le stock a été mis à jour.'];
+        });
+
+        return redirect()
+            ->route('sales.show', $sale)
+            ->with($result[0] ? 'success' : 'error', $result[1]);
+    }
+
+    /**
+     * Annuler une vente : le stock est restauré si elle était validée.
+     */
+    public function cancel(Sale $sale)
+    {
+        $result = DB::transaction(function () use ($sale): array {
+            $sale = Sale::whereKey($sale->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($sale->status === 'cancelled') {
+                return [false, 'Cette vente est déjà annulée.'];
+            }
+
+            if (
+                $sale->status === 'completed'
+                && $sale->invoice()->exists()
+            ) {
+                return [false, 'Impossible d\'annuler une vente déjà facturée.'];
+            }
+
+            if ($sale->status === 'completed') {
+                $sale->load('items');
+
+                $quantities = $sale->items
+                    ->groupBy('product_id')
+                    ->map(fn ($items) => $items->sum('quantity'));
+
+                $productIds = $quantities->keys()
+                    ->map(fn ($id) => (int) $id)
+                    ->sort()
+                    ->values();
+
+                $products = Product::whereIn('id', $productIds)
+                    ->orderBy('id')
+                    ->lockForUpdate()
+                    ->get()
+                    ->keyBy('id');
+
+                foreach ($quantities as $productId => $quantity) {
+                    $product = $products->get((int) $productId);
+
+                    if (! $product) {
+                        throw ValidationException::withMessages([
+                            'sale' => 'Un produit de cette vente est introuvable.',
+                        ]);
+                    }
+
+                    $product->increment('stock', $quantity);
+
+                    StockMovement::create([
+                        'product_id' => (int) $productId,
+                        'type' => 'return',
+                        'quantity' => $quantity,
+                        'description' => 'Annulation de la vente '
+                            .$sale->sale_number,
+                        'source_type' => Sale::class,
+                        'source_id' => $sale->id,
+                    ]);
+                }
+            }
+
+            $sale->update(['status' => 'cancelled']);
+
+            return [true, 'Vente annulée avec succès.'];
+        });
+
+        return redirect()
+            ->route('sales.show', $sale)
+            ->with($result[0] ? 'success' : 'error', $result[1]);
     }
 
     /**
@@ -827,7 +1002,9 @@ class SaleController extends Controller
             ->route('sales.index')
             ->with(
                 'success',
-                'Vente supprimée avec succès et stock restauré.'
+                $sale->status === 'completed'
+                    ? 'Vente supprimée avec succès et stock restauré.'
+                    : 'Brouillon supprimé avec succès.'
             );
     }
 }

@@ -176,6 +176,14 @@ Route::middleware('auth')->group(function () {
             'can:delete,sale'
         );
 
+    Route::post('/sales/{sale}/complete', [SaleController::class, 'complete'])
+        ->name('sales.complete')
+        ->middleware('can:update,sale');
+
+    Route::post('/sales/{sale}/cancel', [SaleController::class, 'cancel'])
+        ->name('sales.cancel')
+        ->middleware('can:update,sale');
+
     // depenses
 
     Route::resource('expenses', ExpenseController::class)
@@ -280,6 +288,14 @@ Route::middleware('auth')->group(function () {
             ['destroy'],
             'can:delete,purchase'
         );
+
+    Route::post('/purchases/{purchase}/receive', [PurchaseController::class, 'receive'])
+        ->name('purchases.receive')
+        ->middleware('can:update,purchase');
+
+    Route::post('/purchases/{purchase}/cancel', [PurchaseController::class, 'cancel'])
+        ->name('purchases.cancel')
+        ->middleware('can:update,purchase');
 
     Route::get('/profile', [ProfileController::class, 'edit'])
         ->name('profile.edit');

@@ -111,6 +111,11 @@ class PurchaseController extends Controller
                 'string',
             ],
 
+            'status' => [
+                'sometimes',
+                Rule::in(['pending', 'received']),
+            ],
+
             'products' => [
                 'required',
                 'array',
@@ -137,7 +142,9 @@ class PurchaseController extends Controller
             ],
         ]);
 
-        DB::transaction(function () use ($validated) {
+        $isFinal = ($validated['status'] ?? 'received') === 'received';
+
+        DB::transaction(function () use ($validated, $isFinal) {
 
             // ==================================================
             // 1. GÉNÉRER LE NUMÉRO DE L'ACHAT
@@ -166,7 +173,7 @@ class PurchaseController extends Controller
                 'purchase_number' => $purchaseNumber,
                 'purchase_date' => $validated['purchase_date'],
                 'total_amount' => 0,
-                'status' => 'received',
+                'status' => $isFinal ? 'received' : 'pending',
                 'notes' => $validated['notes'] ?? null,
             ]);
 
@@ -234,29 +241,29 @@ class PurchaseController extends Controller
                 ]);
 
                 // ==================================================
-                // 4.2 AUGMENTER LE STOCK
+                // 4.2 AUGMENTER LE STOCK ET ENREGISTRER LE MOUVEMENT
+                //     (uniquement pour un achat réceptionné)
                 // ==================================================
 
-                $product->increment(
-                    'stock',
-                    $quantity
-                );
+                if ($isFinal) {
 
-                // ==================================================
-                // 4.3 MOUVEMENT DE STOCK
-                // ==================================================
+                    $product->increment(
+                        'stock',
+                        $quantity
+                    );
 
-                StockMovement::create([
-                    'product_id' => $productId,
-                    'type' => 'in',
-                    'quantity' => $quantity,
+                    StockMovement::create([
+                        'product_id' => $productId,
+                        'type' => 'in',
+                        'quantity' => $quantity,
 
-                    'description' => 'Achat '
-                        .$purchase->purchase_number,
+                        'description' => 'Achat '
+                            .$purchase->purchase_number,
 
-                    'source_type' => Purchase::class,
-                    'source_id' => $purchase->id,
-                ]);
+                        'source_type' => Purchase::class,
+                        'source_id' => $purchase->id,
+                    ]);
+                }
             }
 
             // ==================================================
@@ -271,11 +278,10 @@ class PurchaseController extends Controller
             // 6. SYNCHRONISER LE DERNIER PRIX D'ACHAT
             // ==================================================
 
-            foreach (array_unique($affectedProductIds) as $productId) {
-
-                $this->syncPurchasePrice(
-                    $productId
-                );
+            if ($isFinal) {
+                foreach (array_unique($affectedProductIds) as $productId) {
+                    $this->syncPurchasePrice($productId);
+                }
             }
         });
 
@@ -283,7 +289,9 @@ class PurchaseController extends Controller
             ->route('purchases.index')
             ->with(
                 'success',
-                'Achat enregistré avec succès et stock mis à jour.'
+                $isFinal
+                    ? 'Achat enregistré avec succès et stock mis à jour.'
+                    : 'Brouillon d\'achat enregistré. Réceptionnez l\'achat pour mettre le stock à jour.'
             );
     }
 
@@ -373,9 +381,12 @@ class PurchaseController extends Controller
             ],
         ]);
 
+        $appliesToStock = $purchase->status === 'received';
+
         DB::transaction(function () use (
             $purchase,
-            $validated
+            $validated,
+            $appliesToStock
         ) {
 
             // ==================================================
@@ -447,12 +458,14 @@ class PurchaseController extends Controller
             foreach ($affectedProductIds as $productId) {
 
                 $oldQuantity =
-                    $purchase->status === 'received'
+                    $appliesToStock
                         ? (int) ($oldQuantities[$productId] ?? 0)
                         : 0;
 
                 $newQuantity =
-                    (int) ($newQuantities[$productId] ?? 0);
+                    $appliesToStock
+                        ? (int) ($newQuantities[$productId] ?? 0)
+                        : 0;
 
                 $stockDifference =
                     $newQuantity - $oldQuantity;
@@ -587,7 +600,7 @@ class PurchaseController extends Controller
                 'supplier_id' => $validated['supplier_id'],
                 'purchase_date' => $validated['purchase_date'],
                 'total_amount' => round($totalAmount, 2),
-                'status' => 'received',
+                'status' => $purchase->status,
                 'notes' => $validated['notes'] ?? null,
             ]);
 
@@ -595,11 +608,10 @@ class PurchaseController extends Controller
             // 11. SYNCHRONISER LE DERNIER PRIX D'ACHAT
             // ==================================================
 
-            foreach ($affectedProductIds as $productId) {
-
-                $this->syncPurchasePrice(
-                    $productId
-                );
+            if ($appliesToStock) {
+                foreach ($affectedProductIds as $productId) {
+                    $this->syncPurchasePrice($productId);
+                }
             }
         });
 
@@ -607,8 +619,162 @@ class PurchaseController extends Controller
             ->route('purchases.index')
             ->with(
                 'success',
-                'Achat modifié avec succès et stock mis à jour.'
+                $appliesToStock
+                    ? 'Achat modifié avec succès et stock mis à jour.'
+                    : 'Brouillon modifié avec succès. Le stock sera mis à jour lors de la réception.'
             );
+    }
+
+    /**
+     * Réceptionner un brouillon : le stock est augmenté à ce moment.
+     */
+    public function receive(Purchase $purchase)
+    {
+        $result = DB::transaction(function () use ($purchase): array {
+            $purchase = Purchase::whereKey($purchase->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($purchase->status !== 'pending') {
+                return [false, 'Seul un achat en brouillon peut être réceptionné.'];
+            }
+
+            $purchase->load('items');
+
+            $quantities = $purchase->items
+                ->groupBy('product_id')
+                ->map(fn ($items) => $items->sum('quantity'));
+
+            $productIds = $quantities->keys()
+                ->map(fn ($id) => (int) $id)
+                ->sort()
+                ->values();
+
+            $products = Product::whereIn('id', $productIds)
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id');
+
+            foreach ($quantities as $productId => $quantity) {
+                if (! $products->get((int) $productId)) {
+                    throw ValidationException::withMessages([
+                        'purchase' => 'Un produit de cet achat est introuvable.',
+                    ]);
+                }
+            }
+
+            foreach ($quantities as $productId => $quantity) {
+                $products->get((int) $productId)->increment('stock', $quantity);
+
+                StockMovement::create([
+                    'product_id' => (int) $productId,
+                    'type' => 'in',
+                    'quantity' => $quantity,
+                    'description' => 'Réception de l\'achat '
+                        .$purchase->purchase_number,
+                    'source_type' => Purchase::class,
+                    'source_id' => $purchase->id,
+                ]);
+            }
+
+            $purchase->update(['status' => 'received']);
+
+            foreach ($productIds as $productId) {
+                $this->syncPurchasePrice($productId);
+            }
+
+            return [true, 'Achat réceptionné avec succès. Le stock a été mis à jour.'];
+        });
+
+        return redirect()
+            ->route('purchases.show', $purchase)
+            ->with($result[0] ? 'success' : 'error', $result[1]);
+    }
+
+    /**
+     * Annuler un achat : le stock est décrémenté s'il était réceptionné.
+     */
+    public function cancel(Purchase $purchase)
+    {
+        $result = DB::transaction(function () use ($purchase): array {
+            $purchase = Purchase::whereKey($purchase->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($purchase->status === 'cancelled') {
+                return [false, 'Cet achat est déjà annulé.'];
+            }
+
+            $productIds = collect();
+
+            if ($purchase->status === 'received') {
+                $purchase->load('items');
+
+                $quantities = $purchase->items
+                    ->groupBy('product_id')
+                    ->map(fn ($items) => $items->sum('quantity'));
+
+                $productIds = $quantities->keys()
+                    ->map(fn ($id) => (int) $id)
+                    ->sort()
+                    ->values();
+
+                $products = Product::whereIn('id', $productIds)
+                    ->orderBy('id')
+                    ->lockForUpdate()
+                    ->get()
+                    ->keyBy('id');
+
+                foreach ($quantities as $productId => $quantity) {
+                    $product = $products->get((int) $productId);
+
+                    if (! $product) {
+                        throw ValidationException::withMessages([
+                            'purchase' => 'Un produit de cet achat est introuvable.',
+                        ]);
+                    }
+
+                    if ($product->stock < $quantity) {
+                        throw ValidationException::withMessages([
+                            'purchase' => 'Stock insuffisant pour annuler l\'achat '
+                                .$purchase->purchase_number
+                                .' : le produit '
+                                .$product->name
+                                .' n\'a que '
+                                .$product->stock
+                                .' unité(s) en stock.',
+                        ]);
+                    }
+                }
+
+                foreach ($quantities as $productId => $quantity) {
+                    $products->get((int) $productId)->decrement('stock', $quantity);
+
+                    StockMovement::create([
+                        'product_id' => (int) $productId,
+                        'type' => 'out',
+                        'quantity' => $quantity,
+                        'description' => 'Annulation de l\'achat '
+                            .$purchase->purchase_number,
+                        'source_type' => Purchase::class,
+                        'source_id' => $purchase->id,
+                    ]);
+                }
+            }
+
+            $purchase->update(['status' => 'cancelled']);
+
+            foreach ($productIds as $productId) {
+                $this->syncPurchasePrice($productId);
+            }
+
+            return [true, 'Achat annulé avec succès.'];
+        });
+
+        return redirect()
+            ->route('purchases.show', $purchase)
+            ->with($result[0] ? 'success' : 'error', $result[1]);
     }
 
     /**
