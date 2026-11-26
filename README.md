@@ -65,10 +65,11 @@ Pour le développement avec Vite, la file d’attente et les journaux Laravel, u
 
 ```powershell
 php artisan test
+composer test:coverage
 vendor\bin\pint --test
 ```
 
-La suite de tests utilise SQLite en mémoire via `phpunit.xml` et ne doit pas écrire dans la base MySQL configurée pour l’application.
+La suite de tests utilise SQLite en mémoire via `phpunit.xml` et ne doit pas écrire dans la base MySQL configurée pour l’application. `composer test:coverage` nécessite un pilote de couverture (PCOV ou Xdebug) et fait échouer la commande sous 50 % de couverture.
 
 ## Accès et données
 
@@ -118,4 +119,4 @@ Le endpoint `GET /up` sert de health-check. Les journaux utilisent le canal `dai
 
 ## Intégration continue
 
-Le workflow `.github/workflows/ci.yml` exécute, à chaque push et pull request : installation des dépendances, `pint --test`, `php artisan test` et `npm run build`. La suite de tests utilise SQLite en mémoire et n’affecte jamais la base applicative.
+Le workflow `.github/workflows/ci.yml` exécute, à chaque push et pull request : installation des dépendances, `pint --test`, `composer test:coverage` (seuil minimal 50 %) et `npm run build`. La suite de tests utilise SQLite en mémoire et n’affecte jamais la base applicative.

@@ -45,8 +45,8 @@ jobs:
       - name: Formatage (Pint)
         run: vendor/bin/pint --test
 
-      - name: Tests et couverture (PHPUnit)
-        run: php artisan test --coverage-text
+      - name: Tests et couverture (PHPUnit, seuil minimal 50 %)
+        run: composer test:coverage
 
       - name: Build des assets
         run: npm run build

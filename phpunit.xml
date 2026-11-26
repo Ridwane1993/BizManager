@@ -12,6 +12,7 @@
             <directory>tests/Feature</directory>
         </testsuite>
     </testsuites>
+    <!-- PHPUnit 11 ne gère pas de seuil minimal dans ce fichier : le seuil est appliqué par `composer test:coverage`. -->
     <source>
         <include>
             <directory>app</directory>
