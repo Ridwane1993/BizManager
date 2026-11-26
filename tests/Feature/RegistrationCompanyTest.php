@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Company;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -31,6 +32,9 @@ class RegistrationCompanyTest extends TestCase
             'company_id' => $company->getKey(),
             'role' => 'admin',
         ]);
+
+        // Le modèle User reste volontairement non scopé globalement pour Fortify.
+        $this->assertSame(1, User::query()->count());
     }
 
     public function test_registration_with_company_join_code_joins_existing_company(): void

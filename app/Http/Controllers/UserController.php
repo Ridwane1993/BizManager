@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Company;
 use App\Models\User;
+use App\Support\UserCompanyScope;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -17,9 +17,9 @@ class UserController extends Controller
      */
     public function index(Request $request)
     {
-        $company = $this->currentCompany($request);
+        $company = UserCompanyScope::companyFor($request->user());
 
-        $query = $company->users()
+        $query = UserCompanyScope::queryFor($company)
             ->latest();
 
         // ==================================================
@@ -61,7 +61,7 @@ class UserController extends Controller
 
     public function issueJoinCode(Request $request)
     {
-        $company = $this->currentCompany($request);
+        $company = UserCompanyScope::companyFor($request->user());
         $joinCode = Str::upper(Str::random(10));
 
         $company->forceFill([
@@ -110,7 +110,7 @@ class UserController extends Controller
             ],
         ]);
 
-        $company = $this->currentCompany($request);
+        $company = UserCompanyScope::companyFor($request->user());
 
         $company->users()->create([
             'name' => $validated['name'],
@@ -134,9 +134,9 @@ class UserController extends Controller
      */
     public function show(Request $request, User $user)
     {
-        $this->ensureUserBelongsToCompany(
+        UserCompanyScope::ensureBelongsTo(
             $user,
-            $this->currentCompany($request)
+            UserCompanyScope::companyFor($request->user())
         );
 
         return view(
@@ -150,9 +150,9 @@ class UserController extends Controller
      */
     public function edit(Request $request, User $user)
     {
-        $this->ensureUserBelongsToCompany(
+        UserCompanyScope::ensureBelongsTo(
             $user,
-            $this->currentCompany($request)
+            UserCompanyScope::companyFor($request->user())
         );
 
         return view(
@@ -168,8 +168,8 @@ class UserController extends Controller
         Request $request,
         User $user
     ) {
-        $company = $this->currentCompany($request);
-        $this->ensureUserBelongsToCompany($user, $company);
+        $company = UserCompanyScope::companyFor($request->user());
+        UserCompanyScope::ensureBelongsTo($user, $company);
 
         $validated = $request->validate([
             'name' => [
@@ -233,13 +233,11 @@ class UserController extends Controller
         // MISE À JOUR ATOMIQUE
         // ==================================================
 
-        $companyId = $company->getKey();
-
         $error = DB::transaction(function () use (
             $user,
             $data,
             $newRole,
-            $companyId
+            $company
         ) {
 
             /*
@@ -255,7 +253,7 @@ class UserController extends Controller
             |
             */
 
-            $adminUsers = User::where('company_id', $companyId)
+            $adminUsers = UserCompanyScope::queryFor($company)
                 ->where('role', 'admin')
                 ->orderBy('id')
                 ->lockForUpdate()
@@ -267,7 +265,7 @@ class UserController extends Controller
             |--------------------------------------------------------------------------
             */
 
-            $target = User::where('company_id', $companyId)
+            $target = UserCompanyScope::queryFor($company)
                 ->whereKey($user->getKey())
                 ->lockForUpdate()
                 ->firstOrFail();
@@ -335,8 +333,8 @@ class UserController extends Controller
      */
     public function destroy(Request $request, User $user)
     {
-        $company = $this->currentCompany($request);
-        $this->ensureUserBelongsToCompany($user, $company);
+        $company = UserCompanyScope::companyFor($request->user());
+        UserCompanyScope::ensureBelongsTo($user, $company);
 
         // ==================================================
         // PROTECTION DU PROPRE COMPTE
@@ -355,11 +353,9 @@ class UserController extends Controller
         // SUPPRESSION ATOMIQUE
         // ==================================================
 
-        $companyId = $company->getKey();
-
         $error = DB::transaction(function () use (
             $user,
-            $companyId
+            $company
         ) {
 
             /*
@@ -368,7 +364,7 @@ class UserController extends Controller
             |--------------------------------------------------------------------------
             */
 
-            $adminUsers = User::where('company_id', $companyId)
+            $adminUsers = UserCompanyScope::queryFor($company)
                 ->where('role', 'admin')
                 ->orderBy('id')
                 ->lockForUpdate()
@@ -380,7 +376,7 @@ class UserController extends Controller
             |--------------------------------------------------------------------------
             */
 
-            $target = User::where('company_id', $companyId)
+            $target = UserCompanyScope::queryFor($company)
                 ->whereKey($user->getKey())
                 ->lockForUpdate()
                 ->firstOrFail();
@@ -425,28 +421,5 @@ class UserController extends Controller
                 'success',
                 'Utilisateur supprimé avec succès.'
             );
-    }
-
-    private function currentCompany(Request $request): Company
-    {
-        $company = $request->user()->company;
-
-        abort_if(
-            $company === null,
-            403,
-            'Votre compte n’est associé à aucune entreprise.'
-        );
-
-        return $company;
-    }
-
-    private function ensureUserBelongsToCompany(
-        User $user,
-        Company $company
-    ): void {
-        abort_unless(
-            (int) $user->company_id === (int) $company->getKey(),
-            404
-        );
     }
 }

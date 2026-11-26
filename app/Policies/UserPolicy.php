@@ -3,6 +3,7 @@
 namespace App\Policies;
 
 use App\Models\User;
+use App\Support\UserCompanyScope;
 
 class UserPolicy
 {
@@ -21,7 +22,7 @@ class UserPolicy
     public function view(User $user, User $model): bool
     {
         return $user->isAdmin()
-            && $this->belongsToCompany($user, $model);
+            && UserCompanyScope::belongsTo($user, $model);
     }
 
     /**
@@ -39,7 +40,7 @@ class UserPolicy
     public function update(User $user, User $model): bool
     {
         return $user->isAdmin()
-            && $this->belongsToCompany($user, $model);
+            && UserCompanyScope::belongsTo($user, $model);
     }
 
     /**
@@ -48,7 +49,7 @@ class UserPolicy
     public function delete(User $user, User $model): bool
     {
         return $user->isAdmin()
-            && $this->belongsToCompany($user, $model);
+            && UserCompanyScope::belongsTo($user, $model);
     }
 
     /**
@@ -57,7 +58,7 @@ class UserPolicy
     public function restore(User $user, User $model): bool
     {
         return $user->isAdmin()
-            && $this->belongsToCompany($user, $model);
+            && UserCompanyScope::belongsTo($user, $model);
     }
 
     /**
@@ -66,12 +67,6 @@ class UserPolicy
     public function forceDelete(User $user, User $model): bool
     {
         return $user->isAdmin()
-            && $this->belongsToCompany($user, $model);
-    }
-
-    private function belongsToCompany(User $user, User $model): bool
-    {
-        return $user->company_id !== null
-            && (int) $user->company_id === (int) $model->company_id;
+            && UserCompanyScope::belongsTo($user, $model);
     }
 }
