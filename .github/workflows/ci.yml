@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: Tests et qualité
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Récupération du code
+        uses: actions/checkout@v4
+
+      - name: PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: bcmath, mbstring, intl, pdo_sqlite, pdo_mysql
+          coverage: pcov
+          tools: composer:v2
+
+      - name: Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Dépendances PHP
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Dépendances JS
+        run: npm ci
+
+      - name: Environnement de test
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Formatage (Pint)
+        run: vendor/bin/pint --test
+
+      - name: Tests et couverture (PHPUnit)
+        run: php artisan test --coverage-text
+
+      - name: Build des assets
+        run: npm run build
