@@ -2,10 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\InvoiceMail;
 use App\Models\Invoice;
+use App\Models\InvoicePayment;
 use App\Models\Sale;
+use App\Services\InvoicePdfGenerator;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -17,7 +22,7 @@ class InvoiceController extends Controller
             'search' => ['nullable', 'string', 'max:100'],
             'payment_status' => [
                 'nullable',
-                Rule::in(['unpaid', 'paid']),
+                Rule::in(['unpaid', 'partial', 'paid']),
             ],
         ]);
 
@@ -63,7 +68,11 @@ class InvoiceController extends Controller
 
         $sale->load(['client', 'items.product']);
 
-        return view('invoices.create', compact('sale'));
+        $defaultDueDate = now()
+            ->addDays((int) config('invoices.default_due_days', 30))
+            ->toDateString();
+
+        return view('invoices.create', compact('sale', 'defaultDueDate'));
     }
 
     public function store(Request $request, Sale $sale)
@@ -75,6 +84,11 @@ class InvoiceController extends Controller
                 'decimal:0,2',
                 'min:0',
                 'max:100',
+            ],
+            'due_date' => [
+                'nullable',
+                'date_format:Y-m-d',
+                'after_or_equal:today',
             ],
         ]);
 
@@ -141,6 +155,9 @@ class InvoiceController extends Controller
             $invoice = $sale->invoice()->create([
                 'invoice_number' => $invoiceNumber,
                 'issued_at' => now()->toDateString(),
+                'due_date' => $validated['due_date'] ?? now()
+                    ->addDays((int) config('invoices.default_due_days', 30))
+                    ->toDateString(),
                 'client_name' => $sale->client->name,
                 'client_email' => $sale->client->email,
                 'client_phone' => $sale->client->phone,
@@ -167,9 +184,93 @@ class InvoiceController extends Controller
 
     public function show(Invoice $invoice)
     {
-        $invoice->load(['items', 'company']);
+        $invoice->load(['items', 'company', 'payments']);
 
         return view('invoices.show', compact('invoice'));
+    }
+
+    /**
+     * Génère le PDF de la facture côté serveur.
+     */
+    public function pdf(Invoice $invoice, InvoicePdfGenerator $generator)
+    {
+        $pdf = $generator->generate($invoice);
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'
+                .$generator->filename($invoice).'"',
+            'Cache-Control' => 'no-store, private',
+        ]);
+    }
+
+    /**
+     * Envoie la facture (avec son PDF) au client par e-mail.
+     */
+    public function send(Invoice $invoice, InvoicePdfGenerator $generator)
+    {
+        if (! $invoice->client_email) {
+            return redirect()
+                ->route('invoices.show', $invoice)
+                ->with('error', 'Aucune adresse e-mail n’est renseignée pour ce client.');
+        }
+
+        $pdf = $generator->generate($invoice);
+
+        Mail::to($invoice->client_email)
+            ->send(new InvoiceMail($invoice, $pdf));
+
+        $invoice->update(['sent_at' => now()]);
+
+        return redirect()
+            ->route('invoices.show', $invoice)
+            ->with('success', 'Facture envoyée par e-mail avec succès.');
+    }
+
+    /**
+     * Enregistre un paiement partiel ou solde la facture.
+     */
+    public function storePayment(Request $request, Invoice $invoice)
+    {
+        $remaining = $invoice->remainingAmount();
+
+        $validated = $request->validate([
+            'amount' => [
+                'required',
+                'numeric',
+                'min:0.01',
+                'max:'.$remaining,
+            ],
+            'paid_at' => [
+                'required',
+                'date_format:Y-m-d',
+            ],
+            'note' => [
+                'nullable',
+                'string',
+                'max:255',
+            ],
+        ]);
+
+        DB::transaction(function () use ($validated, $invoice): void {
+            $invoice = Invoice::whereKey($invoice->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            InvoicePayment::create([
+                'invoice_id' => $invoice->getKey(),
+                'amount' => $validated['amount'],
+                'paid_at' => Carbon::parse($validated['paid_at'])
+                    ->startOfDay(),
+                'note' => $validated['note'] ?? null,
+            ]);
+
+            $invoice->refreshPaymentStatus();
+        });
+
+        return redirect()
+            ->route('invoices.show', $invoice)
+            ->with('success', 'Paiement enregistré avec succès.');
     }
 
     public function updatePaymentStatus(Request $request, Invoice $invoice)

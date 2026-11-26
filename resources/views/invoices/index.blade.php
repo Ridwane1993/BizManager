@@ -45,6 +45,12 @@
                                 Non payées
                             </option>
                             <option
+                                value="partial"
+                                @selected(old('payment_status', $filters['payment_status']) === 'partial')
+                            >
+                                Partiellement payées
+                            </option>
+                            <option
                                 value="paid"
                                 @selected(old('payment_status', $filters['payment_status']) === 'paid')
                             >
@@ -94,6 +100,8 @@
                             <td>
                                 @if ($invoice->payment_status === 'paid')
                                     <span class="badge bg-success">Payée</span>
+                                @elseif ($invoice->payment_status === 'partial')
+                                    <span class="badge bg-info text-dark">Partiellement payée</span>
                                 @else
                                     <span class="badge bg-warning text-dark">Non payée</span>
                                 @endif

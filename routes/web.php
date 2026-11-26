@@ -85,6 +85,27 @@ Route::middleware('auth')->group(function () {
         ->name('invoices.payment-status')
         ->middleware('can:update,invoice');
 
+    Route::get('/invoices/{invoice}/pdf', [
+        InvoiceController::class,
+        'pdf',
+    ])
+        ->name('invoices.pdf')
+        ->middleware('can:view,invoice');
+
+    Route::post('/invoices/{invoice}/send', [
+        InvoiceController::class,
+        'send',
+    ])
+        ->name('invoices.send')
+        ->middleware('can:update,invoice');
+
+    Route::post('/invoices/{invoice}/payments', [
+        InvoiceController::class,
+        'storePayment',
+    ])
+        ->name('invoices.payments.store')
+        ->middleware('can:update,invoice');
+
     // categories
     Route::resource('categories', CategoryController::class)
         ->except(['show'])

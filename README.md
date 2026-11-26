@@ -8,8 +8,9 @@ BizManager est une application Laravel de gestion commerciale destinée aux peti
 - Rapports de période pour les ventes terminées, les achats reçus et les dépenses, avec export CSV.
 - Gestion des produits, catégories, clients et fournisseurs; les listes des produits et clients sont filtrables et paginées.
 - Enregistrement des ventes et achats avec workflow brouillon → validation/réception → annulation; le stock n’est modifié qu’à la validation et restauré lors d’une annulation; listes filtrables et paginées par numéro, tiers, statut et période.
-- Création de factures à partir des ventes et suivi de leur statut de paiement.
-- Recherche et filtres de factures par numéro, client et statut de paiement.
+- Création de factures à partir des ventes validées, avec date d’échéance, instantané client/produits et calcul de la taxe.
+- Génération du PDF côté serveur, envoi de la facture par e-mail avec pièce jointe, enregistrement de paiements partiels et suivi du restant dû.
+- Recherche et filtres de factures par numéro, client et statut de paiement (non payée, partielle, payée).
 - Suivi des mouvements de stock et des dépenses, avec catégories de dépenses et filtres par période, catégorie ou description.
 - Recherche globale de produits, clients, fournisseurs, ventes, achats, factures et dépenses.
 - Comptes utilisateurs, inscription, authentification et contrôle d’accès par rôle.

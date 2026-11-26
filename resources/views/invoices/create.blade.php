@@ -122,6 +122,23 @@
                             <div class="invalid-feedback d-block">{{ $message }}</div>
                         @enderror
 
+                        <label for="due_date" class="form-label mt-3">Date d’échéance</label>
+                        <input
+                            type="date"
+                            id="due_date"
+                            name="due_date"
+                            class="form-control @error('due_date') is-invalid @enderror"
+                            value="{{ old('due_date', $defaultDueDate) }}"
+                            min="{{ now()->toDateString() }}"
+                            aria-describedby="due-date-help"
+                        >
+                        <div id="due-date-help" class="form-text mb-3">
+                            Laissez vide pour appliquer le délai par défaut de {{ config('invoices.default_due_days', 30) }} jours.
+                        </div>
+                        @error('due_date')
+                            <div class="invalid-feedback d-block">{{ $message }}</div>
+                        @enderror
+
                         <div
                             class="border-top pt-3"
                             data-invoice-summary
