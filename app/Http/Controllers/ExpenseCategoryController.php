@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreExpenseCategoryRequest;
+use App\Http\Requests\UpdateExpenseCategoryRequest;
 use App\Models\ExpenseCategory;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
 
 class ExpenseCategoryController extends Controller
 {
@@ -24,17 +24,9 @@ class ExpenseCategoryController extends Controller
         return view('expense-categories.create');
     }
 
-    public function store(Request $request)
+    public function store(StoreExpenseCategoryRequest $request)
     {
-        $validated = $request->validate([
-            'name' => [
-                'required',
-                'string',
-                'max:255',
-                Rule::unique('expense_categories', 'name')
-                    ->where('company_id', $request->user()->company_id),
-            ],
-        ]);
+        $validated = $request->validated();
 
         ExpenseCategory::create($validated);
 
@@ -50,18 +42,11 @@ class ExpenseCategoryController extends Controller
         ]);
     }
 
-    public function update(Request $request, ExpenseCategory $expense_category)
-    {
-        $validated = $request->validate([
-            'name' => [
-                'required',
-                'string',
-                'max:255',
-                Rule::unique('expense_categories', 'name')
-                    ->where('company_id', $request->user()->company_id)
-                    ->ignore($expense_category->getKey()),
-            ],
-        ]);
+    public function update(
+        UpdateExpenseCategoryRequest $request,
+        ExpenseCategory $expense_category
+    ) {
+        $validated = $request->validated();
 
         DB::transaction(function () use ($expense_category, $validated): void {
             $expense_category->update($validated);

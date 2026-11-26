@@ -201,31 +201,7 @@
                         Statut
                     </div>
 
-                    @if ($sale->status === 'completed')
-
-                        <span class="badge bg-success">
-                            Terminée
-                        </span>
-
-                    @elseif ($sale->status === 'pending')
-
-                        <span class="badge bg-warning text-dark">
-                            En attente
-                        </span>
-
-                    @elseif ($sale->status === 'cancelled')
-
-                        <span class="badge bg-danger">
-                            Annulée
-                        </span>
-
-                    @else
-
-                        <span class="badge bg-secondary">
-                            {{ $sale->status }}
-                        </span>
-
-                    @endif
+                    <x-status-badge :status="$sale->status" type="sale" />
 
                 </div>
 

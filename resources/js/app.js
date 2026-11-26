@@ -1,8 +1,17 @@
 import "./bootstrap";
 import Chart from "chart.js/auto";
 import { Passkeys } from "@laravel/passkeys";
+import { initDashboardPeriodFilter } from "./modules/dashboard";
+import { initInvoiceForm } from "./modules/invoice-form";
+import { initSidebar } from "./modules/sidebar";
+import { initStockMovementForm } from "./modules/stock-movement-form";
 
 document.addEventListener("DOMContentLoaded", function () {
+    initSidebar();
+    initInvoiceForm();
+    initStockMovementForm();
+    initDashboardPeriodFilter();
+
     // ==================================================
     // CONFIGURATION PASSKEYS
     // ==================================================

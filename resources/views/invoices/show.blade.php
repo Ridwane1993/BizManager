@@ -77,13 +77,7 @@
                         <div class="text-muted">Envoyée le {{ $invoice->sent_at->format('d/m/Y H:i') }}</div>
                     @endif
                     <div class="mt-2">
-                        @if ($invoice->payment_status === 'paid')
-                            <span class="badge bg-success">Payée</span>
-                        @elseif ($invoice->payment_status === 'partial')
-                            <span class="badge bg-info text-dark">Partiellement payée</span>
-                        @else
-                            <span class="badge bg-warning text-dark">Non payée</span>
-                        @endif
+                        <x-status-badge :status="$invoice->payment_status" type="invoice" />
                     </div>
                 </div>
             </div>

@@ -25,39 +25,7 @@
     {{-- ==================================================
         ERREURS
     ================================================== --}}
-    @if ($errors->any())
-
-        <div
-            class="alert alert-danger alert-dismissible fade show"
-            role="alert"
-        >
-
-            <strong>
-                Veuillez corriger les erreurs suivantes :
-            </strong>
-
-            <ul class="mb-0 mt-2">
-
-                @foreach ($errors->all() as $error)
-
-                    <li>
-                        {{ $error }}
-                    </li>
-
-                @endforeach
-
-            </ul>
-
-            <button
-                type="button"
-                class="btn-close"
-                data-bs-dismiss="alert"
-                aria-label="Fermer"
-            ></button>
-
-        </div>
-
-    @endif
+    <x-validation-errors message="Veuillez corriger les erreurs suivantes :" />
 
     {{-- ==================================================
         FORMULAIRE
@@ -209,6 +177,7 @@
                     <div
                         id="quantityHelp"
                         class="form-text"
+                        data-adjustment-help="Pour une correction, utilisez un nombre positif pour augmenter le stock ou négatif pour le diminuer."
                     >
                         La quantité doit être positive pour une entrée,
                         sortie, perte ou retour.
@@ -282,60 +251,5 @@
     </div>
 
 </div>
-
-@push('scripts')
-
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-
-    const typeSelect =
-        document.getElementById('type');
-
-    const quantityInput =
-        document.getElementById('quantity');
-
-    const quantityHelp =
-        document.getElementById('quantityHelp');
-
-    function updateQuantityRules() {
-
-        if (typeSelect.value === 'adjustment') {
-
-            quantityInput.removeAttribute('min');
-
-            quantityHelp.textContent =
-                'Pour une correction, utilisez un nombre positif pour augmenter le stock ou négatif pour le diminuer.';
-
-        } else {
-
-            quantityInput.setAttribute(
-                'min',
-                '1'
-            );
-
-            quantityHelp.textContent =
-                'La quantité doit être positive pour une entrée, sortie, perte ou retour.';
-
-            if (
-                quantityInput.value !== ''
-                && parseInt(quantityInput.value) < 1
-            ) {
-
-                quantityInput.value = 1;
-            }
-        }
-    }
-
-    typeSelect.addEventListener(
-        'change',
-        updateQuantityRules
-    );
-
-    updateQuantityRules();
-
-});
-</script>
-
-@endpush
 
 @endsection

@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreInvoicePaymentRequest;
+use App\Http\Requests\StoreInvoiceRequest;
+use App\Http\Requests\UpdateInvoicePaymentStatusRequest;
 use App\Mail\InvoiceMail;
 use App\Models\Invoice;
 use App\Models\InvoicePayment;
@@ -75,22 +78,9 @@ class InvoiceController extends Controller
         return view('invoices.create', compact('sale', 'defaultDueDate'));
     }
 
-    public function store(Request $request, Sale $sale)
+    public function store(StoreInvoiceRequest $request, Sale $sale)
     {
-        $validated = $request->validate([
-            'tax_rate' => [
-                'required',
-                'numeric',
-                'decimal:0,2',
-                'min:0',
-                'max:100',
-            ],
-            'due_date' => [
-                'nullable',
-                'date_format:Y-m-d',
-                'after_or_equal:today',
-            ],
-        ]);
+        $validated = $request->validated();
 
         $invoice = DB::transaction(function () use (
             $sale,
@@ -230,27 +220,11 @@ class InvoiceController extends Controller
     /**
      * Enregistre un paiement partiel ou solde la facture.
      */
-    public function storePayment(Request $request, Invoice $invoice)
-    {
-        $remaining = $invoice->remainingAmount();
-
-        $validated = $request->validate([
-            'amount' => [
-                'required',
-                'numeric',
-                'min:0.01',
-                'max:'.$remaining,
-            ],
-            'paid_at' => [
-                'required',
-                'date_format:Y-m-d',
-            ],
-            'note' => [
-                'nullable',
-                'string',
-                'max:255',
-            ],
-        ]);
+    public function storePayment(
+        StoreInvoicePaymentRequest $request,
+        Invoice $invoice
+    ) {
+        $validated = $request->validated();
 
         DB::transaction(function () use ($validated, $invoice): void {
             $invoice = Invoice::whereKey($invoice->getKey())
@@ -273,14 +247,11 @@ class InvoiceController extends Controller
             ->with('success', 'Paiement enregistré avec succès.');
     }
 
-    public function updatePaymentStatus(Request $request, Invoice $invoice)
-    {
-        $validated = $request->validate([
-            'payment_status' => [
-                'required',
-                Rule::in(['unpaid', 'paid']),
-            ],
-        ]);
+    public function updatePaymentStatus(
+        UpdateInvoicePaymentStatusRequest $request,
+        Invoice $invoice
+    ) {
+        $validated = $request->validated();
 
         $invoice->update([
             'payment_status' => $validated['payment_status'],

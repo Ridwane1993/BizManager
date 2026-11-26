@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreProductRequest;
+use App\Http\Requests\UpdateProductRequest;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\StockMovement;
@@ -81,58 +83,9 @@ class ProductController extends Controller
     /**
      * Enregistrer un nouveau produit.
      */
-    public function store(Request $request)
+    public function store(StoreProductRequest $request)
     {
-        $validated = $request->validate([
-            'category_id' => [
-                'required',
-                Rule::exists('categories', 'id')
-                    ->where('company_id', $request->user()->company_id),
-            ],
-
-            'name' => [
-                'required',
-                'string',
-                'max:255',
-            ],
-
-            'reference' => [
-                'required',
-                'string',
-                'max:255',
-                Rule::unique('products', 'reference')
-                    ->where('company_id', $request->user()->company_id),
-            ],
-
-            'purchase_price' => [
-                'required',
-                'numeric',
-                'min:0',
-            ],
-
-            'selling_price' => [
-                'required',
-                'numeric',
-                'min:0',
-            ],
-
-            'stock' => [
-                'required',
-                'integer',
-                'min:0',
-            ],
-
-            'stock_alert_threshold' => [
-                'required',
-                'integer',
-                'min:0',
-            ],
-
-            'description' => [
-                'nullable',
-                'string',
-            ],
-        ]);
+        $validated = $request->validated();
 
         DB::transaction(function () use ($validated) {
 
@@ -295,60 +248,10 @@ class ProductController extends Controller
      * Modifier un produit.
      */
     public function update(
-        Request $request,
+        UpdateProductRequest $request,
         Product $product
     ) {
-        $validated = $request->validate([
-            'category_id' => [
-                'required',
-                Rule::exists('categories', 'id')
-                    ->where('company_id', $request->user()->company_id),
-            ],
-
-            'name' => [
-                'required',
-                'string',
-                'max:255',
-            ],
-
-            'reference' => [
-                'required',
-                'string',
-                'max:255',
-                Rule::unique('products', 'reference')
-                    ->where('company_id', $request->user()->company_id)
-                    ->ignore($product->id),
-            ],
-
-            'purchase_price' => [
-                'required',
-                'numeric',
-                'min:0',
-            ],
-
-            'selling_price' => [
-                'required',
-                'numeric',
-                'min:0',
-            ],
-
-            'stock' => [
-                'required',
-                'integer',
-                'min:0',
-            ],
-
-            'stock_alert_threshold' => [
-                'required',
-                'integer',
-                'min:0',
-            ],
-
-            'description' => [
-                'nullable',
-                'string',
-            ],
-        ]);
+        $validated = $request->validated();
 
         DB::transaction(function () use (
             $validated,

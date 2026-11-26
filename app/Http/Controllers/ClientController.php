@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\SaveClientRequest;
 use App\Models\Client;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -51,37 +52,9 @@ class ClientController extends Controller
     /**
      * Enregistrer un nouveau client.
      */
-    public function store(Request $request)
+    public function store(SaveClientRequest $request)
     {
-        $validated = $request->validate([
-            'name' => [
-                'required',
-                'string',
-                'max:255',
-            ],
-
-            'email' => [
-                'nullable',
-                'email',
-                'max:255',
-            ],
-
-            'phone' => [
-                'nullable',
-                'string',
-                'max:50',
-            ],
-
-            'address' => [
-                'nullable',
-                'string',
-            ],
-
-            'notes' => [
-                'nullable',
-                'string',
-            ],
-        ]);
+        $validated = $request->validated();
 
         Client::create($validated);
 
@@ -119,38 +92,10 @@ class ClientController extends Controller
      * Modifier un client.
      */
     public function update(
-        Request $request,
+        SaveClientRequest $request,
         Client $client
     ) {
-        $validated = $request->validate([
-            'name' => [
-                'required',
-                'string',
-                'max:255',
-            ],
-
-            'email' => [
-                'nullable',
-                'email',
-                'max:255',
-            ],
-
-            'phone' => [
-                'nullable',
-                'string',
-                'max:50',
-            ],
-
-            'address' => [
-                'nullable',
-                'string',
-            ],
-
-            'notes' => [
-                'nullable',
-                'string',
-            ],
-        ]);
+        $validated = $request->validated();
 
         $client->update($validated);
 

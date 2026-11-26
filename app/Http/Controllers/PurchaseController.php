@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StorePurchaseRequest;
+use App\Http\Requests\UpdatePurchaseRequest;
 use App\Models\Product;
 use App\Models\Purchase;
 use App\Models\PurchaseItem;
@@ -92,55 +94,9 @@ class PurchaseController extends Controller
     /**
      * Enregistrer un achat.
      */
-    public function store(Request $request)
+    public function store(StorePurchaseRequest $request)
     {
-        $validated = $request->validate([
-            'supplier_id' => [
-                'required',
-                Rule::exists('suppliers', 'id')
-                    ->where('company_id', $request->user()->company_id),
-            ],
-
-            'purchase_date' => [
-                'required',
-                'date',
-            ],
-
-            'notes' => [
-                'nullable',
-                'string',
-            ],
-
-            'status' => [
-                'sometimes',
-                Rule::in(['pending', 'received']),
-            ],
-
-            'products' => [
-                'required',
-                'array',
-                'min:1',
-            ],
-
-            'products.*.product_id' => [
-                'required',
-                Rule::exists('products', 'id')
-                    ->where('company_id', $request->user()->company_id),
-                'distinct',
-            ],
-
-            'products.*.quantity' => [
-                'required',
-                'integer',
-                'min:1',
-            ],
-
-            'products.*.unit_price' => [
-                'required',
-                'numeric',
-                'min:0',
-            ],
-        ]);
+        $validated = $request->validated();
 
         $isFinal = ($validated['status'] ?? 'received') === 'received';
 
@@ -335,51 +291,10 @@ class PurchaseController extends Controller
      * Modifier un achat.
      */
     public function update(
-        Request $request,
+        UpdatePurchaseRequest $request,
         Purchase $purchase
     ) {
-        $validated = $request->validate([
-            'supplier_id' => [
-                'required',
-                Rule::exists('suppliers', 'id')
-                    ->where('company_id', $request->user()->company_id),
-            ],
-
-            'purchase_date' => [
-                'required',
-                'date',
-            ],
-
-            'notes' => [
-                'nullable',
-                'string',
-            ],
-
-            'products' => [
-                'required',
-                'array',
-                'min:1',
-            ],
-
-            'products.*.product_id' => [
-                'required',
-                Rule::exists('products', 'id')
-                    ->where('company_id', $request->user()->company_id),
-                'distinct',
-            ],
-
-            'products.*.quantity' => [
-                'required',
-                'integer',
-                'min:1',
-            ],
-
-            'products.*.unit_price' => [
-                'required',
-                'numeric',
-                'min:0',
-            ],
-        ]);
+        $validated = $request->validated();
 
         $appliesToStock = $purchase->status === 'received';
 

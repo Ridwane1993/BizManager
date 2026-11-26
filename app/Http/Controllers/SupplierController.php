@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\SaveSupplierRequest;
 use App\Models\Supplier;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -58,37 +59,9 @@ class SupplierController extends Controller
     /**
      * Enregistrer un fournisseur.
      */
-    public function store(Request $request)
+    public function store(SaveSupplierRequest $request)
     {
-        $validated = $request->validate([
-            'name' => [
-                'required',
-                'string',
-                'max:255',
-            ],
-
-            'email' => [
-                'nullable',
-                'email',
-                'max:255',
-            ],
-
-            'phone' => [
-                'nullable',
-                'string',
-                'max:50',
-            ],
-
-            'address' => [
-                'nullable',
-                'string',
-            ],
-
-            'notes' => [
-                'nullable',
-                'string',
-            ],
-        ]);
+        $validated = $request->validated();
 
         Supplier::create($validated);
 
@@ -139,38 +112,10 @@ class SupplierController extends Controller
      * Mettre à jour un fournisseur.
      */
     public function update(
-        Request $request,
+        SaveSupplierRequest $request,
         Supplier $supplier
     ) {
-        $validated = $request->validate([
-            'name' => [
-                'required',
-                'string',
-                'max:255',
-            ],
-
-            'email' => [
-                'nullable',
-                'email',
-                'max:255',
-            ],
-
-            'phone' => [
-                'nullable',
-                'string',
-                'max:50',
-            ],
-
-            'address' => [
-                'nullable',
-                'string',
-            ],
-
-            'notes' => [
-                'nullable',
-                'string',
-            ],
-        ]);
+        $validated = $request->validated();
 
         $supplier->update($validated);
 

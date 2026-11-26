@@ -72,39 +72,7 @@
     {{-- ==================================================
         ERREURS
     ================================================== --}}
-    @if ($errors->any())
-
-        <div
-            class="alert alert-danger alert-dismissible fade show"
-            role="alert"
-        >
-
-            <strong>
-                Veuillez corriger les erreurs suivantes :
-            </strong>
-
-            <ul class="mb-0 mt-2">
-
-                @foreach ($errors->all() as $error)
-
-                    <li>
-                        {{ $error }}
-                    </li>
-
-                @endforeach
-
-            </ul>
-
-            <button
-                type="button"
-                class="btn-close"
-                data-bs-dismiss="alert"
-                aria-label="Fermer"
-            ></button>
-
-        </div>
-
-    @endif
+    <x-validation-errors message="Veuillez corriger les erreurs suivantes :" />
 
     {{-- ==================================================
         FORMULAIRE

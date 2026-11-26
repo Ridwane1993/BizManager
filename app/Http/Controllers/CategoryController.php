@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreCategoryRequest;
+use App\Http\Requests\UpdateCategoryRequest;
 use App\Models\Category;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
 
 class CategoryController extends Controller
 {
@@ -33,22 +33,9 @@ class CategoryController extends Controller
     /**
      * Enregistrer une nouvelle catégorie.
      */
-    public function store(Request $request)
+    public function store(StoreCategoryRequest $request)
     {
-        $validated = $request->validate([
-            'name' => [
-                'required',
-                'string',
-                'max:255',
-                Rule::unique('categories', 'name')
-                    ->where('company_id', $request->user()->company_id),
-            ],
-
-            'description' => [
-                'nullable',
-                'string',
-            ],
-        ]);
+        $validated = $request->validated();
 
         Category::create($validated);
 
@@ -84,24 +71,10 @@ class CategoryController extends Controller
      * Modifier une catégorie.
      */
     public function update(
-        Request $request,
+        UpdateCategoryRequest $request,
         Category $category
     ) {
-        $validated = $request->validate([
-            'name' => [
-                'required',
-                'string',
-                'max:255',
-                Rule::unique('categories', 'name')
-                    ->where('company_id', $request->user()->company_id)
-                    ->ignore($category->id),
-            ],
-
-            'description' => [
-                'nullable',
-                'string',
-            ],
-        ]);
+        $validated = $request->validated();
 
         $category->update($validated);
 

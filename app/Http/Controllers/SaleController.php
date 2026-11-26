@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreSaleRequest;
+use App\Http\Requests\UpdateSaleRequest;
 use App\Models\Client;
 use App\Models\Product;
 use App\Models\Sale;
@@ -98,49 +100,9 @@ class SaleController extends Controller
     /**
      * Enregistrer une nouvelle vente.
      */
-    public function store(Request $request)
+    public function store(StoreSaleRequest $request)
     {
-        $validated = $request->validate([
-            'client_id' => [
-                'required',
-                Rule::exists('clients', 'id')
-                    ->where('company_id', $request->user()->company_id),
-            ],
-
-            'sale_date' => [
-                'required',
-                'date',
-            ],
-
-            'notes' => [
-                'nullable',
-                'string',
-            ],
-
-            'status' => [
-                'sometimes',
-                Rule::in(['pending', 'completed']),
-            ],
-
-            'products' => [
-                'required',
-                'array',
-                'min:1',
-            ],
-
-            'products.*.product_id' => [
-                'required',
-                Rule::exists('products', 'id')
-                    ->where('company_id', $request->user()->company_id),
-                'distinct',
-            ],
-
-            'products.*.quantity' => [
-                'required',
-                'integer',
-                'min:1',
-            ],
-        ]);
+        $validated = $request->validated();
 
         $isFinal = ($validated['status'] ?? 'completed') === 'completed';
 
@@ -352,45 +314,10 @@ class SaleController extends Controller
      * Modifier une vente.
      */
     public function update(
-        Request $request,
+        UpdateSaleRequest $request,
         Sale $sale
     ) {
-        $validated = $request->validate([
-            'client_id' => [
-                'required',
-                Rule::exists('clients', 'id')
-                    ->where('company_id', $request->user()->company_id),
-            ],
-
-            'sale_date' => [
-                'required',
-                'date',
-            ],
-
-            'notes' => [
-                'nullable',
-                'string',
-            ],
-
-            'products' => [
-                'required',
-                'array',
-                'min:1',
-            ],
-
-            'products.*.product_id' => [
-                'required',
-                Rule::exists('products', 'id')
-                    ->where('company_id', $request->user()->company_id),
-                'distinct',
-            ],
-
-            'products.*.quantity' => [
-                'required',
-                'integer',
-                'min:1',
-            ],
-        ]);
+        $validated = $request->validated();
 
         $appliesToStock = $sale->status === 'completed';
 

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\SaveExpenseRequest;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
 use Illuminate\Http\Request;
@@ -90,32 +91,9 @@ class ExpenseController extends Controller
     /**
      * Enregistrer une nouvelle dépense.
      */
-    public function store(Request $request)
+    public function store(SaveExpenseRequest $request)
     {
-        $validated = $request->validate([
-            'category' => [
-                'required',
-                'string',
-                'max:255',
-            ],
-
-            'amount' => [
-                'required',
-                'numeric',
-                'min:0.01',
-                'decimal:0,2',
-            ],
-
-            'expense_date' => [
-                'required',
-                'date',
-            ],
-
-            'description' => [
-                'nullable',
-                'string',
-            ],
-        ]);
+        $validated = $request->validated();
 
         DB::transaction(function () use ($validated): void {
             $category = ExpenseCategory::firstOrCreate([
@@ -164,33 +142,10 @@ class ExpenseController extends Controller
      * Modifier une dépense.
      */
     public function update(
-        Request $request,
+        SaveExpenseRequest $request,
         Expense $expense
     ) {
-        $validated = $request->validate([
-            'category' => [
-                'required',
-                'string',
-                'max:255',
-            ],
-
-            'amount' => [
-                'required',
-                'numeric',
-                'min:0.01',
-                'decimal:0,2',
-            ],
-
-            'expense_date' => [
-                'required',
-                'date',
-            ],
-
-            'description' => [
-                'nullable',
-                'string',
-            ],
-        ]);
+        $validated = $request->validated();
 
         DB::transaction(function () use ($validated, $expense): void {
             $category = ExpenseCategory::firstOrCreate([

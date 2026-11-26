@@ -29,10 +29,13 @@ class InvoiceWorkflowTest extends TestCase
             ->assertSee('Original product name')
             ->assertSee('data-invoice-summary', false)
             ->assertSee('data-invoice-tax-amount', false)
+            ->assertSee('data-subtotal="100.00"', false)
             ->assertSee('col-12 col-xl-8', false)
             ->assertSee('table-responsive', false)
-            ->assertSee("taxRateInput.addEventListener('input', updateTotals)", false)
+            ->assertDontSee("taxRateInput.addEventListener('input', updateTotals)", false)
             ->assertSee('Émettre la facture');
+
+        $this->assertFileExists(resource_path('js/modules/invoice-form.js'));
     }
 
     public function test_invoice_snapshots_sale_data_calculates_tax_and_tracks_payment(): void

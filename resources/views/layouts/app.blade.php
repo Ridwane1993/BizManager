@@ -537,38 +537,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
 
-    {{-- ==================================================
-    SIDEBAR MOBILE
-================================================== --}}
-
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-
-            const sidebar =
-                document.getElementById('sidebar');
-
-            const sidebarToggle =
-                document.getElementById('sidebarToggle');
-
-
-            if (
-                sidebar &&
-                sidebarToggle
-            ) {
-
-                sidebarToggle.addEventListener(
-                    'click',
-                    function() {
-
-                        sidebar.classList.toggle('show');
-
-                    }
-                );
-
-            }
-
-        });
-    </script>
+    {{-- Le comportement de la sidebar est centralisé dans resources/js/modules/sidebar.js --}}
 
 
     {{-- ==================================================

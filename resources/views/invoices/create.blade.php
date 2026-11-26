@@ -21,16 +21,7 @@
         </p>
     </div>
 
-    @if ($errors->any())
-        <div class="alert alert-danger" role="alert">
-            <p class="fw-semibold mb-2">La facture n’a pas pu être créée :</p>
-            <ul class="mb-0">
-                @foreach ($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                @endforeach
-            </ul>
-        </div>
-    @endif
+    <x-validation-errors message="La facture n’a pas pu être créée :" />
 
     <div class="row g-4">
         <div class="col-12 col-xl-8">
@@ -174,36 +165,4 @@
     </div>
 </div>
 
-@push('scripts')
-    <script>
-        (() => {
-            const summary = document.querySelector('[data-invoice-summary]');
-            const taxRateInput = document.getElementById('tax_rate');
-            const taxAmountOutput = document.getElementById('invoiceTaxAmount');
-            const totalOutput = document.getElementById('invoiceTotal');
-
-            if (!summary || !taxRateInput || !taxAmountOutput || !totalOutput) {
-                return;
-            }
-
-            const subtotal = Number(summary.dataset.subtotal);
-            const formatAmount = new Intl.NumberFormat('fr-FR', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-            });
-
-            const updateTotals = () => {
-                const enteredRate = Number(taxRateInput.value);
-                const rate = Number.isFinite(enteredRate) ? enteredRate : 0;
-                const taxAmount = Math.round((subtotal * rate / 100 + Number.EPSILON) * 100) / 100;
-
-                taxAmountOutput.textContent = `${formatAmount.format(taxAmount)} FCFA`;
-                totalOutput.textContent = `${formatAmount.format(subtotal + taxAmount)} FCFA`;
-            };
-
-            taxRateInput.addEventListener('input', updateTotals);
-            updateTotals();
-        })();
-    </script>
-@endpush
 @endsection

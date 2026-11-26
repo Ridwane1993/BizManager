@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\SaveStockMovementRequest;
 use App\Models\Product;
 use App\Models\StockMovement;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class StockMovementController extends Controller
@@ -143,37 +143,9 @@ class StockMovementController extends Controller
     /**
      * Enregistrer un mouvement manuel.
      */
-    public function store(Request $request)
+    public function store(SaveStockMovementRequest $request)
     {
-        $validated = $request->validate([
-            'product_id' => [
-                'required',
-                Rule::exists('products', 'id')
-                    ->where('company_id', $request->user()->company_id),
-            ],
-
-            'type' => [
-                'required',
-                Rule::in([
-                    'in',
-                    'out',
-                    'adjustment',
-                    'loss',
-                    'return',
-                ]),
-            ],
-
-            'quantity' => [
-                'required',
-                'integer',
-                'not_in:0',
-            ],
-
-            'description' => [
-                'nullable',
-                'string',
-            ],
-        ]);
+        $validated = $request->validated();
 
         $type = $validated['type'];
 
@@ -317,38 +289,10 @@ class StockMovementController extends Controller
      * Modifier un mouvement manuel.
      */
     public function update(
-        Request $request,
+        SaveStockMovementRequest $request,
         StockMovement $stock_movement
     ) {
-        $validated = $request->validate([
-            'product_id' => [
-                'required',
-                Rule::exists('products', 'id')
-                    ->where('company_id', $request->user()->company_id),
-            ],
-
-            'type' => [
-                'required',
-                Rule::in([
-                    'in',
-                    'out',
-                    'adjustment',
-                    'loss',
-                    'return',
-                ]),
-            ],
-
-            'quantity' => [
-                'required',
-                'integer',
-                'not_in:0',
-            ],
-
-            'description' => [
-                'nullable',
-                'string',
-            ],
-        ]);
+        $validated = $request->validated();
 
         $newType = $validated['type'];
 

@@ -11,15 +11,7 @@
         </p>
     </div>
 
-    @if ($errors->any())
-        <div class="alert alert-danger" role="alert">
-            <ul class="mb-0">
-                @foreach ($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                @endforeach
-            </ul>
-        </div>
-    @endif
+    <x-validation-errors />
 
     <div class="card border-0 shadow-sm">
         <div class="card-body p-4">
@@ -92,7 +84,11 @@
                             step="1"
                             required
                         >
-                        <div id="quantityHelp" class="form-text">
+                        <div
+                            id="quantityHelp"
+                            class="form-text"
+                            data-adjustment-help="Utilisez une valeur positive pour augmenter le stock ou négative pour le diminuer."
+                        >
                             La quantité doit être positive pour une entrée, sortie, perte ou retour.
                         </div>
                         @error('quantity')
@@ -131,33 +127,4 @@
     </div>
 </div>
 
-@push('scripts')
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    const typeSelect = document.getElementById('type');
-    const quantityInput = document.getElementById('quantity');
-    const quantityHelp = document.getElementById('quantityHelp');
-
-    function updateQuantityRules() {
-        if (typeSelect.value === 'adjustment') {
-            quantityInput.removeAttribute('min');
-            quantityHelp.textContent =
-                'Utilisez une valeur positive pour augmenter le stock ou négative pour le diminuer.';
-            return;
-        }
-
-        quantityInput.setAttribute('min', '1');
-        quantityHelp.textContent =
-            'La quantité doit être positive pour une entrée, sortie, perte ou retour.';
-
-        if (quantityInput.value !== '' && Number(quantityInput.value) < 1) {
-            quantityInput.value = 1;
-        }
-    }
-
-    typeSelect.addEventListener('change', updateQuantityRules);
-    updateQuantityRules();
-});
-</script>
-@endpush
 @endsection

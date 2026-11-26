@@ -98,13 +98,7 @@
                             <td>{{ $invoice->issued_at->format('d/m/Y') }}</td>
                             <td class="text-end">{{ number_format($invoice->total_amount, 2, ',', ' ') }} FCFA</td>
                             <td>
-                                @if ($invoice->payment_status === 'paid')
-                                    <span class="badge bg-success">Payée</span>
-                                @elseif ($invoice->payment_status === 'partial')
-                                    <span class="badge bg-info text-dark">Partiellement payée</span>
-                                @else
-                                    <span class="badge bg-warning text-dark">Non payée</span>
-                                @endif
+                                <x-status-badge :status="$invoice->payment_status" type="invoice" />
                             </td>
                             <td class="text-end px-4">
                                 <a href="{{ route('invoices.show', $invoice) }}" class="btn btn-sm btn-outline-primary">

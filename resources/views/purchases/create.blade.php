@@ -39,49 +39,7 @@ $productRowsData = array_values($oldProducts);
     ERREURS
 ================================================== --}}
 
-@if ($errors->any())
-
-    <div
-        class="alert alert-danger alert-dismissible fade show"
-        role="alert"
-    >
-
-        <div class="d-flex">
-
-            <i class="bi bi-exclamation-triangle me-2 mt-1"></i>
-
-            <div>
-
-                <strong>
-                    Certaines informations sont incorrectes.
-                </strong>
-
-                <ul class="mb-0 mt-2">
-
-                    @foreach ($errors->all() as $error)
-
-                        <li>
-                            {{ $error }}
-                        </li>
-
-                    @endforeach
-
-                </ul>
-
-            </div>
-
-        </div>
-
-        <button
-            type="button"
-            class="btn-close"
-            data-bs-dismiss="alert"
-            aria-label="Fermer"
-        ></button>
-
-    </div>
-
-@endif
+<x-validation-errors message="Certaines informations sont incorrectes." />
 
 {{-- ==================================================
     FORMULAIRE

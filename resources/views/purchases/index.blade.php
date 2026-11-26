@@ -230,31 +230,7 @@
                                 {{-- Statut --}}
                                 <td>
 
-                                    @if ($purchase->status === 'received')
-
-                                        <span class="badge bg-success">
-                                            Reçu
-                                        </span>
-
-                                    @elseif ($purchase->status === 'pending')
-
-                                        <span class="badge bg-warning text-dark">
-                                            En attente
-                                        </span>
-
-                                    @elseif ($purchase->status === 'cancelled')
-
-                                        <span class="badge bg-danger">
-                                            Annulé
-                                        </span>
-
-                                    @else
-
-                                        <span class="badge bg-secondary">
-                                            {{ $purchase->status }}
-                                        </span>
-
-                                    @endif
+                                    <x-status-badge :status="$purchase->status" type="purchase" />
 
                                 </td>
 
